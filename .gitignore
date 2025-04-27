@@ -1,0 +1,8 @@
+# 忽略 pycache
+__pycache__/
+# 忽略 pyc 文件
+*.pyc
+# 忽略虚拟环境（如果有）
+venv/
+# 忽略保存的模型输出
+output/

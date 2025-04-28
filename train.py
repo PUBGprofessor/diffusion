@@ -35,13 +35,13 @@ def train(ddpm: DDPM, net, device, ckpt_path):
             loss.backward()
             optimizer.step()
         print(f"Epoch: {e}, Loss: {loss.item()}")
-    torch.save(net.state_dict(), ckpt_path)
+        torch.save(net.state_dict(), os.path.join(ckpt_path, f"epoch_{e}.pth"))
 
 if __name__ == '__main__':
     n_steps = 100
     config_id = 4
     device = 'cuda'
-    model_path = 'output/model_unet_res.pth'
+    model_path = './output'
     os.makedirs('output', exist_ok=True)
 
     config = unet_res_cfg

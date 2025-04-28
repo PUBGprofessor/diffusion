@@ -1,7 +1,7 @@
 from dataset import get_dataloader
 from model.DDPM import DDPM
 from model.Net import build_network, unet_res_cfg
-from utils.image import get_img_shape
+from dataset.data_loader import get_img_shape
 
 import einops
 import numpy as np
@@ -37,6 +37,31 @@ def train(ddpm: DDPM, net, device, ckpt_path):
         print(f"Epoch: {e}, Loss: {loss.item()}")
     torch.save(net.state_dict(), ckpt_path)
 
+def sample_imgs(ddpm,
+                net,
+                output_path,
+                n_sample=81,
+                device='cuda',
+                simple_var=True):
+    net = net.to(device)
+    net = net.eval()
+    with torch.no_grad():
+        shape = (n_sample, *get_img_shape())  # 1, 3, 28, 28
+        imgs = ddpm.sample_backward(shape,
+                                    net,
+                                    device=device,
+                                    simple_var=simple_var).detach().cpu()
+        imgs = (imgs + 1) / 2 * 255
+        imgs = imgs.clamp(0, 255)
+        imgs = einops.rearrange(imgs,
+                                '(b1 b2) c h w -> (b1 h) (b2 w) c',
+                                b1=int(n_sample**0.5))
+
+        imgs = imgs.numpy().astype(np.uint8)
+
+        cv2.imwrite(output_path, imgs)
+
+
 if __name__ == '__main__':
     n_steps = 100
     config_id = 4
@@ -47,6 +72,8 @@ if __name__ == '__main__':
     config = unet_res_cfg
     net = build_network(config, n_steps)
     ddpm = DDPM(device, n_steps)
-
-    train(ddpm, net, device=device, ckpt_path=model_path)
+    ckpt_path = model_path
+    net.load_state_dict(torch.load(ckpt_path))
+    sample_imgs(ddpm, net, 'output/sample.png', n_sample=81, device=device)
+    # train(ddpm, net, device=device, ckpt_path=model_path)
 

@@ -50,8 +50,11 @@ class DDPM():
             noise = torch.randn_like(x_t)
             noise *= torch.sqrt(var)
 
+        # mean = (x_t -
+        #         (1 - self.alphas[t]) / torch.sqrt(1 - self.alpha_bars[t]) *
+        #         eps) / torch.sqrt(self.alphas[t])
         mean = (x_t -
-                (1 - self.alphas[t]) / torch.sqrt(1 - self.alpha_bars[t]) *
+                # (1 - self.alphas[t]) / torch.sqrt(1 - self.alpha_bars[t]) *
                 eps) / torch.sqrt(self.alphas[t])
         x_t = mean + noise
 

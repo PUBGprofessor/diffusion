@@ -1,6 +1,6 @@
 from dataset import get_dataloader
 from model.DDPM import DDPM
-from model.Net import build_network, unet_res_cfg
+from diffusion.model.ConvNet import build_network, unet_res_cfg
 from dataset.data_loader import get_img_shape
 
 import einops
@@ -74,6 +74,8 @@ if __name__ == '__main__':
     ddpm = DDPM(device, n_steps)
     ckpt_path = model_path
     net.load_state_dict(torch.load(ckpt_path))
+    net = net.to(device)
+    net.eval()
     sample_imgs(ddpm, net, 'output/sample.png', n_sample=81, device=device)
     # train(ddpm, net, device=device, ckpt_path=model_path)
 

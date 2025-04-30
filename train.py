@@ -1,7 +1,8 @@
 from dataset import get_dataloader
 from model.DDPM import DDPM
-from model.Net import build_network, unet_res_cfg
-from utils.image import get_img_shape
+from model.UNet import MyUNet_w_pe
+# from diffusion.model.ConvNet import build_network, unet_res_cfg
+from utils.image import get_img_shape, set_img_size
 
 import einops
 import numpy as np
@@ -12,6 +13,7 @@ import torch.nn as nn
 batch_size = 256
 n_epochs = 100
 
+set_img_size((1, 28, 28))
 
 def train(ddpm: DDPM, net, device, ckpt_path):
     # n_steps 就是公式里的 T
@@ -23,6 +25,7 @@ def train(ddpm: DDPM, net, device, ckpt_path):
     optimizer = torch.optim.Adam(net.parameters(), 1e-3)
 
     for e in range(n_epochs):
+        loss_sum = 0
         for x, _ in dataloader:
             current_batch_size = x.shape[0]
             x = x.to(device)
@@ -31,10 +34,11 @@ def train(ddpm: DDPM, net, device, ckpt_path):
             x_t = ddpm.sample_forward(x, t, eps)
             eps_theta = net(x_t, t.reshape(current_batch_size, 1))
             loss = loss_fn(eps_theta, eps)
+            loss_sum += loss.item()
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-        print(f"Epoch: {e}, Loss: {loss.item()}")
+        print(f"Epoch: {e}, Loss: {loss_sum / len(dataloader)}")
         torch.save(net.state_dict(), os.path.join(ckpt_path, f"epoch_{e}.pth"))
 
 if __name__ == '__main__':
@@ -44,8 +48,10 @@ if __name__ == '__main__':
     model_path = './output'
     os.makedirs('output', exist_ok=True)
 
-    config = unet_res_cfg
-    net = build_network(config, n_steps)
+    # config = unet_res_cfg
+    # net = build_network(config, n_steps)
+    net = MyUNet_w_pe(n_steps)
+    # net = MyUNet_w_pe(n_steps, ch_list=[4, 8, 16, 32])
     ddpm = DDPM(device, n_steps)
 
     train(ddpm, net, device=device, ckpt_path=model_path)

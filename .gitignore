@@ -6,3 +6,5 @@ __pycache__/
 venv/
 # 忽略保存的模型输出
 output/
+# 忽略notebook
+*.ipynb

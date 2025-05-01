@@ -142,6 +142,7 @@ class MyUNet_w_pe(nn.Module):
         # encoder最上面第一层UNetBlock
         self.encoder.append(nn.Sequential(
             UnetBlock((C, H, W), C, ch_list[0], True),
+            UnetBlock((ch_list[0], H, W), ch_list[0], ch_list[0], True),
             # F.max_pool2d(),
         ))
         self.pe_linears_en.append(nn.Sequential(
@@ -153,6 +154,7 @@ class MyUNet_w_pe(nn.Module):
         # decoder最上面第一层UNetBlock
         self.decoder.append(nn.Sequential(
             UnetBlock((2 * ch_list[0], H, W), 2 * ch_list[0], ch_list[0], True),
+            UnetBlock((ch_list[0], H, W), ch_list[0], ch_list[0], True),
             nn.Conv2d(ch_list[0], C, 1)
         ))
         self.pe_linears_de.append(nn.Sequential(
@@ -160,14 +162,19 @@ class MyUNet_w_pe(nn.Module):
             nn.ReLU(),
             nn.Linear(2 * ch_list[0], 2 * ch_list[0])
         ))
-
+        """
+        反卷积计算公式:(H_in - 1 * S - 2P + D * (K - 1) + O + 1
+        因此归定:偶数时padding为1,outpading为1
+                奇数时padding为0,outpading为0
+                确保一致
+        """
         for i in range(1, len(ch_list)):
-
             # 此时输入为[b, ch_list[i - 1], self.H[i - 1], self.W[i - 1]]
             # 输出为[b, ch_list[i], self.H[i], self.W[i]]
             self.encoder.append(nn.Sequential(
                 nn.MaxPool2d(2),
                 UnetBlock((ch_list[i - 1], self.H[i], self.W[i]), ch_list[i - 1], ch_list[i], True),
+                UnetBlock((ch_list[i], self.H[i], self.W[i]), ch_list[i], ch_list[i], True),
                 # F.max_pool2d(),
             ))
             self.pe_linears_en.append(nn.Sequential(
@@ -182,7 +189,8 @@ class MyUNet_w_pe(nn.Module):
             W_padding = 1 if (self.W[i - 1] % 2 == 0) else 0
             self.decoder.append(nn.Sequential(
                 UnetBlock((2 * ch_list[i], self.H[i], self.W[i]), 2 * ch_list[i], ch_list[i], True),
-                nn.ConvTranspose2d(ch_list[i], ch_list[i - 1], 3, 2, 1, (H_padding, W_padding))
+                UnetBlock((ch_list[i], self.H[i], self.W[i]), ch_list[i], ch_list[i], True),
+                nn.ConvTranspose2d(ch_list[i], ch_list[i - 1], 3, 2, (H_padding, W_padding), (H_padding, W_padding))
             ))
             self.pe_linears_de.append(nn.Sequential(
                 nn.Linear(pe_dim, 2 * ch_list[i]), 
@@ -197,7 +205,8 @@ class MyUNet_w_pe(nn.Module):
         self.bottom = nn.Sequential(
             nn.MaxPool2d(2),
             UnetBlock((ch_list[-1], self.H[-2], self.W[-2]), ch_list[-1], 2 * ch_list[-1], True),
-            nn.ConvTranspose2d(2 * ch_list[-1], ch_list[-1], 3, 2, 1, (H_padding, W_padding))
+            UnetBlock((2 * ch_list[-1], self.H[-2], self.W[-2]), 2 * ch_list[-1], 2 * ch_list[-1], True),
+            nn.ConvTranspose2d(2 * ch_list[-1], ch_list[-1], 3, 2, (H_padding, W_padding), (H_padding, W_padding))
         )
         self.pe_linears_bottom = nn.Sequential(
             nn.Linear(pe_dim, ch_list[-1]), 
@@ -235,7 +244,7 @@ class UNet(nn.Module):
         Ws = [W]
         cH = H
         cW = W
-        for _ in range(layers - 1): # 0,1,2,3
+        for _ in range(layers - 1): # 0,1,2
             cH //= 2
             cW //= 2
             Hs.append(cH)

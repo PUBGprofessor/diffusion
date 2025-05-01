@@ -24,8 +24,14 @@ class Dataset():
         # else:
         #     return self.G.getImage("test"), torch.tensor(0.0, device=self.device)
         return self.x_train[index], torch.tensor(1.0, device=self.device)
-    
-def get_dataloader(batch_size: int):
+
+def get_dataset(device: str = 'cuda'):
+    transform = Compose([Lambda(lambda x: (x - 0.5) * 2)])
+    # transform = Compose([ToTensor(), Lambda(lambda x: (x - 0.5) * 2)])
+    dataset = Dataset(device = device, transform=transform)
+    return dataset
+
+def get_dataloader(batch_size: int, device: str = 'cuda'):
     transform = Compose([Lambda(lambda x: (x - 0.5) * 2)])
     # transform = Compose([ToTensor(), Lambda(lambda x: (x - 0.5) * 2)])
     dataset = Dataset(device='cuda', transform=transform)

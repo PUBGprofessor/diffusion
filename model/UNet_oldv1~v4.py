@@ -35,8 +35,7 @@ class UnetBlock(nn.Module):
     def __init__(self, shape, in_ch, out_ch, residual=True):
         super().__init__()
 
-        self.BatchNorm = nn.BatchNorm2d(in_ch)
-        # self.LayerNorm = nn.LayerNorm(shape)
+        self.LayerNorm = nn.LayerNorm(shape)
         self.activation = nn.LeakyReLU()
         self.gen = nn.Sequential(
             nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1),
@@ -51,8 +50,7 @@ class UnetBlock(nn.Module):
                 self.residual_conv = nn.Conv2d(in_ch, out_ch, 1)
 
     def forward(self, x):
-        # x = self.LayerNorm(x)
-        x = self.BatchNorm(x)
+        x = self.LayerNorm(x)
         out = self.gen(x)
         if self.residual:
             out += self.residual_conv(x)
@@ -157,13 +155,12 @@ class MyUNet_w_pe(nn.Module):
         self.decoder.append(nn.Sequential(
             UnetBlock((2 * ch_list[0], H, W), 2 * ch_list[0], ch_list[0], True),
             UnetBlock((ch_list[0], H, W), ch_list[0], ch_list[0], True),
-            # nn.BatchNorm()
             nn.Conv2d(ch_list[0], C, 1)
         ))
         self.pe_linears_de.append(nn.Sequential(
-            nn.Linear(pe_dim, pe_dim), 
+            nn.Linear(pe_dim, 2 * ch_list[0]), 
             nn.ReLU(),
-            nn.Linear(pe_dim, 2 * ch_list[0])
+            nn.Linear(2 * ch_list[0], 2 * ch_list[0])
         ))
         """
         反卷积计算公式:(H_in - 1 * S - 2P + D * (K - 1) + O + 1
@@ -181,9 +178,9 @@ class MyUNet_w_pe(nn.Module):
                 # F.max_pool2d(),
             ))
             self.pe_linears_en.append(nn.Sequential(
-                nn.Linear(pe_dim, pe_dim),
+                nn.Linear(pe_dim, ch_list[i - 1]),
                 nn.ReLU(),
-                nn.Linear(pe_dim, ch_list[i - 1])
+                nn.Linear(ch_list[i - 1], ch_list[i - 1])
             ))
 
             # 此时输入为[b, 2 * ch_list[i], self.H[i], self.W[i]]
@@ -196,9 +193,9 @@ class MyUNet_w_pe(nn.Module):
                 nn.ConvTranspose2d(ch_list[i], ch_list[i - 1], 3, 2, (H_padding, W_padding), (H_padding, W_padding))
             ))
             self.pe_linears_de.append(nn.Sequential(
-                nn.Linear(pe_dim, pe_dim), 
+                nn.Linear(pe_dim, 2 * ch_list[i]), 
                 nn.ReLU(),
-                nn.Linear(pe_dim, 2 * ch_list[i])
+                nn.Linear(2 * ch_list[i], 2 * ch_list[i])
             ))
 
         # 输入 [b, ch_list[-1], self.H[-2], self.W[-2]]
@@ -212,9 +209,9 @@ class MyUNet_w_pe(nn.Module):
             nn.ConvTranspose2d(2 * ch_list[-1], ch_list[-1], 3, 2, (H_padding, W_padding), (H_padding, W_padding))
         )
         self.pe_linears_bottom = nn.Sequential(
-            nn.Linear(pe_dim, pe_dim), 
+            nn.Linear(pe_dim, ch_list[-1]), 
             nn.ReLU(),
-            nn.Linear(pe_dim, ch_list[-1])
+            nn.Linear(ch_list[-1], ch_list[-1])
         )
         
     def forward(self, x, t):

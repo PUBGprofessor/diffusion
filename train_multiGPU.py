@@ -1,9 +1,9 @@
 from dataset import get_dataset, get_dataloader
 from model.DDPM import DDPM
-from model.UNet import MyUNet_w_pe, UNet
+from model.UNet import MyUNet_w_pe
 # from diffusion.model.ConvNet import build_network, unet_res_cfg
 from utils.image import get_img_shape, set_img_size, show_images, sample_imgs
-
+from utils.lr_scheduler import lr_scheduler
 import einops
 import numpy as np
 import cv2
@@ -18,11 +18,14 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
 
 batch_size = 512
-n_epochs = 3000
-n_steps = 1000
+n_epochs = 1500
+n_steps = 800
+ch_list=[16, 32, 64, 128]
+pe_dim = 32
+# ch_list=[32, 64, 128 ,256]
 world_size = 2
 # device = 'cuda'
-model_path = './output/v3'
+model_path = './output/v6'
 load_epoch = 0
 
 def setup(rank, world_size):
@@ -37,7 +40,7 @@ def train_fn(rank, world_size):
     # initialize the process group
     dist.init_process_group("NCCL", rank=rank, world_size=world_size)
 
-    net = MyUNet_w_pe(n_steps).to(device)
+    net = MyUNet_w_pe(n_steps, ch_list, pe_dim).to(device)
 
     net = DDP(net, device_ids=[rank])
     if load_epoch != 0:
@@ -57,10 +60,11 @@ def train(ddpm: DDPM, net, device, ckpt_path, rank):
     dataset = get_dataset(device=device)
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank)
     dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler, num_workers=2, pin_memory=True, prefetch_factor=8)
+    # dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler)
     # net = net.to(device)
     loss_fn = nn.MSELoss()
-    optimizer = torch.optim.Adam(net.parameters(), 1e-4)
-
+    optimizer = torch.optim.Adam(net.parameters(), 2e-3)
+    # scheduler = lr_scheduler(optimizer, 300)
     start_time = time.time()
 
     for e in range(load_epoch, n_epochs):
@@ -80,6 +84,7 @@ def train(ddpm: DDPM, net, device, ckpt_path, rank):
             loss.backward()
             optimizer.step()
 
+        # scheduler.step()
         epoch_end_time = time.time()
         if rank == 0:
             print(f"Epoch: {e}, Loss: {loss_sum / len(dataloader)}, Time: {epoch_end_time - epoch_start_time:.2f}s")
@@ -87,7 +92,14 @@ def train(ddpm: DDPM, net, device, ckpt_path, rank):
             if ep % 100 == 0:
                 # save model
                 with torch.no_grad():
-                    torch.save(net.state_dict(), os.path.join(ckpt_path, f"epoch_{e + 1}.pth"))
+                    torch.save({
+                        "model": net.state_dict(),
+                        "optimizer": optimizer.state_dict(),
+                        }, 
+                        os.path.join(ckpt_path, f"epoch_{e + 1}.pth")
+                    )
+            if ep % 50 == 0 or (ep <= 100 and ep % 10 == 0):
+                with torch.no_grad():
                     net.eval()
                     sample_imgs(ddpm, net, os.path.join(ckpt_path, f"epoch_{e + 1}.png"), n_sample=81, device=device)
 
@@ -101,7 +113,7 @@ if __name__ == '__main__':
     # set_img_size((1, 28, 28))
     os.environ["MASTER_ADDR"] = "localhost"# ——11——
     os.environ["MASTER_PORT"] = "29500"
-    os.makedirs('output', exist_ok=True)
+    os.makedirs(model_path, exist_ok=True)
 
     mp.spawn(train_fn,
              args=(world_size,),

@@ -10,7 +10,7 @@
 
 原始论文：https://arxiv.org/abs/2006.11239
 
-![DDPM](\source\DDPM.png)
+![DDPM](./source/DDPM.png)
 
 其核心思想：
 
@@ -18,11 +18,11 @@
 
    在前向过程中，来自训练集的图像x0会被添加T次噪声，使得xT为符合标准正态分布。准确来说，「加噪声」并不是给上一时刻的图像加上噪声值，而是从一个均值与上一时刻图像相关的正态分布里采样出一幅新图像。
 
-   ![image-20250502112723413](\source\image-20250502112723413.png)
+   ![image-20250502112723413](/source/image-20250502112723413.png)
 
    令αt=1−βt,α¯t=∏i=1tαi，则：
 
-   ![image-20250502112756171](\source\image-20250502112756171.png)
+   ![image-20250502112756171](/source/image-20250502112756171.png)
 
    当step足够多、β逐渐增大时，最后的x_t则接近正态分布
 
@@ -30,7 +30,7 @@
 
    这里的推导比较复杂，我也没有完全看懂，最后的均值分布是：
 
-   ![image-20250502113308018](\source\image-20250502113308018.png)
+   ![image-20250502113308018](/source/image-20250502113308018.png)
 
    那就简单来说：噪声当然是不可逆的，因此我们用一个神经网络来预测：
 
@@ -149,7 +149,7 @@ class PositionalEncoding(nn.Module):
 
 ## 四、UNet实现
 
-![v2-68ffbaff593f95cc96fc4b6811356e39_r](\source\v2-68ffbaff593f95cc96fc4b6811356e39_r.jpg)
+![v2-68ffbaff593f95cc96fc4b6811356e39_r](/source/v2-68ffbaff593f95cc96fc4b6811356e39_r.jpg)
 
 ```python
 class UnetBlock(nn.Module):
@@ -283,17 +283,17 @@ class MyUNet_w_pe(nn.Module):
 
 实际测试时，发现我自己写的UNet输出的结果总是有大量的全黑或全白，而用别人的UNet就比较稳定，不知道为什么，求大佬指点一下
 
-![image-20250502123135210](\source\image-20250502123135210.png)
+![image-20250502123135210](/source/image-20250502123135210.png)
 
 ## 五、应用 1：MNIST 手写数字生成
 
 使用step=100:
 
-![sample_step100](\source\sample_step100.png)
+![sample_step100](/source/sample_step100.png)
 
 使用step=1000:
 
-![sample_step1000](\source\sample_step1000.png)
+![sample_step1000](/source/sample_step1000.png)
 
 ## 六、应用 2：Anime Face 动漫人脸生成
 
@@ -418,7 +418,7 @@ if __name__ == '__main__':
 
 ### **初始参数结果：**
 
-![image-20250502134021203](\source\image-20250502134021203.png)
+![image-20250502134021203](/source/image-20250502134021203.png)
 
 后面的epoch情况也差不多，loss不收敛
 
@@ -426,7 +426,7 @@ if __name__ == '__main__':
 
 看了网上的其他实现，**使用了另一组参数：**（更小的模型通道数和更少的steps）
 
-![image-20250502135406591](\source\image-20250502135406591.png)
+![image-20250502135406591](/source/image-20250502135406591.png)
 
 
 
